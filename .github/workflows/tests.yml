@@ -1,0 +1,189 @@
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches:
+      - master
+  schedule:
+    # Run every Sunday
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python and uv
+        uses: drivendataorg/setup-python-uv-action@v1
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: |
+          uv pip install -r requirements-dev/lint.txt
+
+      - name: Lint package
+        run: |
+          make lint
+
+  tests:
+    name: Test suite (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    needs: code-quality
+    runs-on: ${{ matrix.os }}
+    env:
+      DISTUTILS_USE_SDK: 1 # for MSVC compiler
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: [3.11, 3.12]
+
+    steps:
+      - if: matrix.os == 'ubuntu-latest'
+        name: Remove unused software
+        run: |
+          echo "Available storage before:"
+          sudo df -h
+          echo
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          echo "Available storage after:"
+          sudo df -h
+          echo
+
+      - uses: actions/checkout@v4
+
+      - if: matrix.os == 'ubuntu-latest'
+        name: Setup FFmpeg
+        uses: Iamshankhadeep/setup-ffmpeg@v1.1  # does not support arm64
+        with:
+          # Not strictly necessary, but it may prevent rate limit
+          # errors especially on GitHub-hosted macos machines.
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: "4.4"
+
+      - if: matrix.os == 'macos-latest'
+        name: Setup FFmpeg
+        run: |
+          brew install ffmpeg@4
+          echo "/opt/homebrew/opt/ffmpeg@4/bin" >> $GITHUB_PATH
+
+      - name: Configure Windows compilers
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Set up Python and uv
+        uses: drivendataorg/setup-python-uv-action@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          uv pip install -e .[tests]
+
+      - name: Run tests
+        run: |
+          make tests
+
+      - if: matrix.os == 'macos-latest'
+        name: Specify MacOS version for densepose install
+        run: |
+          echo "MACOSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion)" >> $GITHUB_ENV
+
+      - name: Run densepose tests
+        env:
+          ZAMBA_RUN_DENSEPOSE_TESTS: 1
+        run: |
+          uv pip install flit-core
+          # torch is already installed, so just add the densepose extra
+          uv pip install -e .[densepose] --no-build-isolation
+          make densepose-tests
+
+      - name: Upload coverage to codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.xml
+          fail_ci_if_error: true
+
+  test-install:
+    name: Test install from built distributions
+    needs: tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.11, 3.12]
+
+    steps:
+      - name: Remove unused software
+        run: |
+          echo "Available storage before:"
+          sudo df -h
+          echo
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          echo "Available storage after:"
+          sudo df -h
+          echo
+
+      - uses: actions/checkout@v2
+
+      - name: Setup FFmpeg
+        uses: Iamshankhadeep/setup-ffmpeg@v1.2
+        with:
+          # Not strictly necessary, but it may prevent rate limit
+          # errors especially on GitHub-hosted macos machines.
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: "4.4"
+
+      - name: Set up Python and uv
+        uses: drivendataorg/setup-python-uv-action@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build package
+        run: |
+          uv pip install build
+          make dist
+
+      - name: Install wheel; test CLI + models with assets
+        run: |
+          uv venv .venv-whl
+          PYTHON_BIN=.venv-whl/bin/python
+          uv pip install --python=$PYTHON_BIN zamba@$(find dist -name 'zamba*.whl') --force-reinstall
+          $PYTHON_BIN -m zamba --help
+          $PYTHON_BIN -c "from zamba.data.video import MegadetectorLiteYoloX; MegadetectorLiteYoloX()"
+
+      - name: Install source; test CLI + models with assets
+        run: |
+          uv venv .venv-sdist
+          PYTHON_BIN=.venv-sdist/bin/python
+          uv pip install --python=$PYTHON_BIN zamba@$(find dist -name 'zamba*.tar.gz') --force-reinstall
+          $PYTHON_BIN -m zamba --help
+          $PYTHON_BIN -c "from zamba.data.video import MegadetectorLiteYoloX; MegadetectorLiteYoloX()"
+
+  notify:
+    name: Notify failed build
+    needs: [code-quality, tests, test-install]
+    if: failure() && (github.event_name == 'push' || github.event_name == 'schedule')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: JasonEtco/create-an-issue@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_NUMBER: ${{ github.run_number}}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        with:
+          filename: .github/failed_build_issue_template.md
