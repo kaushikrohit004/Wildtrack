@@ -16,8 +16,6 @@ https://user-images.githubusercontent.com/46792169/138346340-98ee196a-5ecd-4753-
 
 The official models in `zamba` can identify blank videos (where no animal is present) along with 32 species common to Africa and 11 species common to Europe. Users can also finetune models using their own labeled videos to then make predictions for new species and/or new ecologies.
 
-Visit https://zamba.drivendata.org/docs/ for full documentation and tutorials.
-
 ## Installing `zamba`
 
 First, make sure you have the prerequisites installed:
