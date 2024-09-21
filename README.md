@@ -16,10 +16,6 @@ https://user-images.githubusercontent.com/46792169/138346340-98ee196a-5ecd-4753-
 
 The official models in `zamba` can identify blank videos (where no animal is present) along with 32 species common to Africa and 11 species common to Europe. Users can also finetune models using their own labeled videos to then make predictions for new species and/or new ecologies.
 
-`zamba` can be used both as a command-line tool and as a Python package. It is also available as a user-friendly website application, [Zamba Cloud](https://www.zambacloud.com/).
-
-We encourage people to share their custom models trained with Zamba. If you train a model and want to make it available, please add it to the [Model Zoo Wiki](https://github.com/drivendataorg/zamba/wiki) for others to be able to use!
-
 Visit https://zamba.drivendata.org/docs/ for full documentation and tutorials.
 
 ## Installing `zamba`
@@ -29,19 +25,6 @@ First, make sure you have the prerequisites installed:
 * Python 3.11 or 3.12
 * FFmpeg > 4.3
 
-Then run:
-```console
-pip install https://github.com/drivendataorg/zamba/releases/latest/download/zamba.tar.gz
-```
-
-See the [Installation](https://zamba.drivendata.org/docs/stable/install/) page of the documentation for details.
-
-## Getting started
-
-Once you have `zamba` installed, some good starting points are:
-
-- The [Quickstart](https://zamba.drivendata.org/docs/stable/quickstart/) page for basic examples of usage
-- The user tutorial for either [classifying videos](https://zamba.drivendata.org/docs/stable/predict-tutorial/) or [training a model](https://zamba.drivendata.org/docs/stable/train-tutorial/) depending on what you want to do with `zamba`
 
 ## Example usage
 
@@ -80,8 +63,6 @@ $ zamba predict --data-dir path/to/videos
 
 By default, predictions will be saved to `zamba_predictions.csv`. Run `zamba predict --help` to list all possible options to pass to `predict`.
 
-See the [Quickstart](https://zamba.drivendata.org/docs/stable/quickstart/) page or the user tutorial on [classifying videos](https://zamba.drivendata.org/docs/stable/predict-tutorial/) for more details.
-
 ### Training a model
 
 ```console
@@ -102,10 +83,6 @@ predict_config:
 
 ```
 
-Now you can pass this configuration to the command line. See the [Quickstart](https://zamba.drivendata.org/docs/stable/quickstart/) page or the user tutorial on [training a model](https://zamba.drivendata.org/docs/stable/train-tutorial/) for more details.
-
-You can then share your model with others by adding it to the [Model Zoo Wiki](https://github.com/drivendataorg/zamba/wiki).
-
 ### Estimating distance between animals and the camera
 
 ```console
@@ -114,11 +91,8 @@ $ zamba depth --data-dir path/to/videos
 
 By default, predictions will be saved to `depth_predictions.csv`. Run `zamba depth --help` to list all possible options to pass to `depth`.
 
-See the [depth estimation page](https://zamba.drivendata.org/docs/stable/models/depth/) for more details.
-
 
 ## Contributing
 
 We would love your contributions of code fixes, new models, additional training data, docs revisions, and anything else you can bring to the project!
 
-See the docs page on [contributing to `zamba`](https://zamba.drivendata.org/docs/stable/contribute/) for details.
